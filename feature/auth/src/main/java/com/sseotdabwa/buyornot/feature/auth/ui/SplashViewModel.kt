@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.viewModelScope
+import com.sseotdabwa.buyornot.core.common.util.runCatchingCancellable
 import com.sseotdabwa.buyornot.core.ui.base.BaseViewModel
 import com.sseotdabwa.buyornot.domain.model.AppUpdateInfo
 import com.sseotdabwa.buyornot.domain.model.UpdateStrategy
@@ -11,6 +12,7 @@ import com.sseotdabwa.buyornot.domain.model.UserType
 import com.sseotdabwa.buyornot.domain.repository.AppPreferencesRepository
 import com.sseotdabwa.buyornot.domain.repository.AppUpdateRepository
 import com.sseotdabwa.buyornot.domain.repository.UserPreferencesRepository
+import com.sseotdabwa.buyornot.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
@@ -63,6 +65,7 @@ class SplashViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val appUpdateRepository: AppUpdateRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
+    private val userRepository: UserRepository,
 ) : BaseViewModel<SplashUiState, SplashIntent, SplashSideEffect>(SplashUiState()) {
     init {
         checkTokenAndNavigate()
@@ -75,6 +78,8 @@ class SplashViewModel @Inject constructor(
     }
 
     private fun checkTokenAndNavigate() {
+        viewModelScope.launch { runCatchingCancellable { userRepository.notifyAppOpened() } }
+
         viewModelScope.launch {
             // 토큰 체크 + 업데이트 체크 병렬 실행
             val updateInfoDeferred =

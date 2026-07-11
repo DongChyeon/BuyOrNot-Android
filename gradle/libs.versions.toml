@@ -41,6 +41,9 @@ googleid = "1.2.0"
 
 lottie = "6.7.1"
 
+# Chucker
+chucker = "4.0.0"
+
 # Analytics
 mixpanel = "7.5.3"
 
@@ -135,6 +138,10 @@ lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", versio
 
 # Analytics
 mixpanel-android = { group = "com.mixpanel.android", name = "mixpanel-android", version.ref = "mixpanel" }
+
+# Chucker
+chucker = { group = "com.github.chuckerteam.chucker", name = "library", version.ref = "chucker" }
+chucker-no-op = { group = "com.github.chuckerteam.chucker", name = "library-no-op", version.ref = "chucker" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

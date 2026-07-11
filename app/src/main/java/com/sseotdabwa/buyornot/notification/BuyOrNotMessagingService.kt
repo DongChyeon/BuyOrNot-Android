@@ -93,7 +93,7 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
         val notification =
             NotificationCompat
                 .Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setAutoCancel(true)

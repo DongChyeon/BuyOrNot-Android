@@ -14,6 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.sseotdabwa.buyornot.PendingFeedDeepLink
 import com.sseotdabwa.buyornot.core.designsystem.components.BuyOrNotSnackBarHost
 import com.sseotdabwa.buyornot.core.designsystem.theme.BuyOrNotTheme
 import com.sseotdabwa.buyornot.core.network.AuthEventBus
@@ -23,11 +24,14 @@ import com.sseotdabwa.buyornot.core.ui.snackbar.rememberBuyOrNotSnackbarState
 import com.sseotdabwa.buyornot.feature.auth.navigation.AuthRoute
 import com.sseotdabwa.buyornot.feature.auth.navigation.SplashRoute
 import com.sseotdabwa.buyornot.feature.home.navigation.HomeRoute
+import com.sseotdabwa.buyornot.feature.notification.navigation.navigateToFeedDetail
 import com.sseotdabwa.buyornot.navigation.BuyOrNotNavHost
 
 @Composable
 fun BuyOrNotApp(
     authEventBus: AuthEventBus,
+    pendingFeedDeepLink: PendingFeedDeepLink? = null,
+    onPendingFeedDeepLinkConsumed: () -> Unit = {},
     onBackPressed: () -> Unit = {},
     onFinish: () -> Unit = {},
     viewModel: BuyOrNotViewModel = hiltViewModel(),
@@ -52,6 +56,20 @@ fun BuyOrNotApp(
             }
             viewModel.updateIsFirstRun(false)
         }
+    }
+
+    // FCM 알림 탭으로 전달된 pending feedId를 인증 완료(Splash/Auth 통과) 후 한 번만 소비한다.
+    // Splash/로그인 화면에서는 보류하고, 인증된 어떤 화면(Home·MyPage·Upload 등)에서든 즉시 이동한다.
+    val currentRoute = currentDestination?.route
+    val isPastAuthGate =
+        currentRoute != null &&
+            currentRoute != SplashRoute::class.qualifiedName &&
+            currentRoute != AuthRoute::class.qualifiedName
+    LaunchedEffect(pendingFeedDeepLink, isPastAuthGate) {
+        val deepLink = pendingFeedDeepLink ?: return@LaunchedEffect
+        if (!isPastAuthGate) return@LaunchedEffect
+        navController.navigateToFeedDetail(deepLink.feedId, deepLink.notificationId)
+        onPendingFeedDeepLinkConsumed()
     }
 
     val isFullscreen =

@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var authEventBus: AuthEventBus
 
-    private val pendingFeedId = MutableStateFlow<Long?>(null)
+    private val pendingFeedDeepLink = MutableStateFlow<PendingFeedDeepLink?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,12 +41,12 @@ class MainActivity : ComponentActivity() {
                 ),
         )
         setContent {
-            val feedId by pendingFeedId.collectAsStateWithLifecycle()
+            val pendingDeepLink by pendingFeedDeepLink.collectAsStateWithLifecycle()
             BuyOrNotTheme {
                 BuyOrNotApp(
                     authEventBus = authEventBus,
-                    pendingFeedId = feedId,
-                    onPendingFeedIdConsumed = { pendingFeedId.value = null },
+                    pendingFeedDeepLink = pendingDeepLink,
+                    onPendingFeedDeepLinkConsumed = { pendingFeedDeepLink.value = null },
                     onBackPressed = { finish() },
                     onFinish = { finishAffinity() },
                 )
@@ -65,13 +65,23 @@ class MainActivity : ComponentActivity() {
         val feedId =
             intent.getStringExtra(FcmKeys.FEED_ID)?.toLongOrNull()
                 ?: intent.getLongExtra(FcmKeys.FEED_ID, -1L).takeIf { it != -1L }
+        val notificationId =
+            intent.getStringExtra(FcmKeys.NOTIFICATION_ID)?.toLongOrNull()
+                ?: intent.getLongExtra(FcmKeys.NOTIFICATION_ID, -1L).takeIf { it != -1L }
         intent.removeExtra(FcmKeys.FEED_ID)
+        intent.removeExtra(FcmKeys.NOTIFICATION_ID)
         setIntent(intent)
         if (BuildConfig.DEBUG) {
-            Log.d("FCM", "handleFeedDeepLink - resolved feedId=$feedId")
+            Log.d("FCM", "handleFeedDeepLink - resolved feedId=$feedId, notificationId=$notificationId")
         }
+        // 딥링크는 feedId가 있어야 성립한다. 마케팅(feedId 없음)은 여기 도달 시 pending 미설정.
         if (feedId != null) {
-            pendingFeedId.value = feedId
+            pendingFeedDeepLink.value = PendingFeedDeepLink(feedId = feedId, notificationId = notificationId)
         }
     }
 }
+
+data class PendingFeedDeepLink(
+    val feedId: Long,
+    val notificationId: Long?,
+)

@@ -51,8 +51,11 @@ fun NavHostController.navigateToNotificationDetail(
 }
 
 /**
- * FCM 딥링크 진입점. notificationId 없이 feedId만으로 피드 상세로 이동한다.
+ * FCM 딥링크 진입점. notificationId가 있으면 함께 넘겨 markAsRead까지 수행한다.
  */
-fun NavHostController.navigateToFeedDetail(feedId: Long) {
-    navigate(NotificationDetailRoute(feedId = feedId))
+fun NavHostController.navigateToFeedDetail(
+    feedId: Long,
+    notificationId: Long? = null,
+) {
+    navigate(NotificationDetailRoute(feedId = feedId, notificationId = notificationId ?: -1L))
 }

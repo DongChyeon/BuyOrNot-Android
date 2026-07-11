@@ -14,6 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.sseotdabwa.buyornot.PendingFeedDeepLink
 import com.sseotdabwa.buyornot.core.designsystem.components.BuyOrNotSnackBarHost
 import com.sseotdabwa.buyornot.core.designsystem.theme.BuyOrNotTheme
 import com.sseotdabwa.buyornot.core.network.AuthEventBus
@@ -29,8 +30,8 @@ import com.sseotdabwa.buyornot.navigation.BuyOrNotNavHost
 @Composable
 fun BuyOrNotApp(
     authEventBus: AuthEventBus,
-    pendingFeedId: Long? = null,
-    onPendingFeedIdConsumed: () -> Unit = {},
+    pendingFeedDeepLink: PendingFeedDeepLink? = null,
+    onPendingFeedDeepLinkConsumed: () -> Unit = {},
     onBackPressed: () -> Unit = {},
     onFinish: () -> Unit = {},
     viewModel: BuyOrNotViewModel = hiltViewModel(),
@@ -64,11 +65,11 @@ fun BuyOrNotApp(
         currentRoute != null &&
             currentRoute != SplashRoute::class.qualifiedName &&
             currentRoute != AuthRoute::class.qualifiedName
-    LaunchedEffect(pendingFeedId, isPastAuthGate) {
-        val feedId = pendingFeedId ?: return@LaunchedEffect
+    LaunchedEffect(pendingFeedDeepLink, isPastAuthGate) {
+        val deepLink = pendingFeedDeepLink ?: return@LaunchedEffect
         if (!isPastAuthGate) return@LaunchedEffect
-        navController.navigateToFeedDetail(feedId)
-        onPendingFeedIdConsumed()
+        navController.navigateToFeedDetail(deepLink.feedId, deepLink.notificationId)
+        onPendingFeedDeepLinkConsumed()
     }
 
     val isFullscreen =

@@ -7,4 +7,6 @@ package com.sseotdabwa.buyornot.notification
  */
 object FcmKeys {
     const val FEED_ID = "feedId"
+    const val NOTIFICATION_ID = "notificationId"
+    const val TYPE = "type"
 }

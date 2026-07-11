@@ -24,6 +24,10 @@ private const val CHANNEL_NAME = "살까말까 알림"
 private const val DEFAULT_TITLE = "살까말까"
 private const val DEFAULT_BODY = "새로운 소식이 도착했어요."
 
+// feedId/notificationId가 모두 없는 마케팅 알림용 고정 notify id.
+// 마케팅 알림끼리는 최신 것으로 덮어써도 무방하므로 단일 상수를 사용한다.
+private const val MARKETING_NOTIFICATION_ID = 0
+
 @AndroidEntryPoint
 class BuyOrNotMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
@@ -47,34 +51,41 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
         }
 
         val feedId = message.data[FcmKeys.FEED_ID]?.toLongOrNull()
-        if (feedId == null) {
-            Log.d(TAG, "onMessageReceived - no valid feedId in data, skip notification")
-            return
+        val notificationId = message.data[FcmKeys.NOTIFICATION_ID]?.toLongOrNull()
+        val type = message.data[FcmKeys.TYPE]
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "onMessageReceived - type=$type, feedId=$feedId, notificationId=$notificationId")
         }
 
         showFeedNotification(
             feedId = feedId,
+            notificationId = notificationId,
             title = message.notification?.title ?: DEFAULT_TITLE,
             body = message.notification?.body ?: DEFAULT_BODY,
         )
     }
 
     private fun showFeedNotification(
-        feedId: Long,
+        feedId: Long?,
+        notificationId: Long?,
         title: String,
         body: String,
     ) {
         createNotificationChannel()
 
+        // 마케팅(feedId·notificationId 없음)은 딥링크 없이 앱만 열리도록 extra를 심지 않는다.
         val intent =
             Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(FcmKeys.FEED_ID, feedId.toString())
+                if (feedId != null) putExtra(FcmKeys.FEED_ID, feedId.toString())
+                if (notificationId != null) putExtra(FcmKeys.NOTIFICATION_ID, notificationId.toString())
             }
+        // notify id / requestCode: notificationId > feedId > 마케팅 고정 상수 순으로 안정적인 id를 사용한다.
+        val systemNotificationId = (notificationId ?: feedId)?.hashCode() ?: MARKETING_NOTIFICATION_ID
         val pendingIntent =
             PendingIntent.getActivity(
                 this,
-                feedId.hashCode(),
+                systemNotificationId,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
@@ -98,7 +109,7 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
             return
         }
 
-        NotificationManagerCompat.from(this).notify(feedId.hashCode(), notification)
+        NotificationManagerCompat.from(this).notify(systemNotificationId, notification)
     }
 
     private fun createNotificationChannel() {

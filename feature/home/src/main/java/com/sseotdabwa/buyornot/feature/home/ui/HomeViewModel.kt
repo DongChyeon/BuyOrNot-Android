@@ -19,6 +19,7 @@ import com.sseotdabwa.buyornot.domain.repository.NotificationRepository
 import com.sseotdabwa.buyornot.domain.repository.UserPreferencesRepository
 import com.sseotdabwa.buyornot.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,6 +37,7 @@ class HomeViewModel @Inject constructor(
 ) : BaseViewModel<HomeUiState, HomeIntent, HomeSideEffect>(HomeUiState()) {
     private var currentUserId: Long? = null
     private var isUserIdLoaded = false
+    private var unreadCountJob: Job? = null
 
     init {
         observeUserPreferences()
@@ -60,6 +62,7 @@ class HomeViewModel @Inject constructor(
                             loadUserIdAndRefreshFeeds()
                             loadUnreadCount()
                         } else {
+                            unreadCountJob?.cancel()
                             currentUserId = null
                             isUserIdLoaded = true
                             updateState { it.copy(selectedTab = HomeTab.FEED, unreadNotificationCount = 0) }
@@ -112,15 +115,21 @@ class HomeViewModel @Inject constructor(
     private fun loadUnreadCount() {
         if (uiState.value.userType != UserType.SOCIAL) return
 
-        viewModelScope.launch {
-            runCatchingCancellable {
-                notificationRepository.getUnreadCount()
-            }.onSuccess { count ->
-                updateState { it.copy(unreadNotificationCount = count) }
-            }.onFailure { e ->
-                Log.e("HomeViewModel", "Failed to load unread notification count", e)
+        // 겹치는 요청 시 이전 요청을 취소해 오래된 응답이 최신 값을 덮어쓰지 않도록 한다.
+        unreadCountJob?.cancel()
+        unreadCountJob =
+            viewModelScope.launch {
+                runCatchingCancellable {
+                    notificationRepository.getUnreadCount()
+                }.onSuccess { count ->
+                    // 로그아웃 등으로 세션이 바뀐 뒤 도착한 응답은 무시한다.
+                    if (uiState.value.userType == UserType.SOCIAL) {
+                        updateState { it.copy(unreadNotificationCount = count) }
+                    }
+                }.onFailure { e ->
+                    Log.e("HomeViewModel", "Failed to load unread notification count", e)
+                }
             }
-        }
     }
 
     override fun handleIntent(intent: HomeIntent) {

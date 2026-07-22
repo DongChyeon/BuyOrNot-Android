@@ -116,7 +116,41 @@ fun BackTopBarWithTitle(
 }
 
 /**
- * 3. 홈 화면용 TopBar (로고 + 알림 + 프로필)
+ * 3. 뒤로가기 + 완료 버튼 TopBar (back-done)
+ */
+@Composable
+fun BackTopBarWithDone(
+    onBackClick: () -> Unit,
+    onDoneClick: () -> Unit,
+) {
+    BaseTopBar(
+        navigationIcon = {
+            ClickableIcon(
+                imageVector = BuyOrNotIcons.ArrowLeft.asImageVector(),
+                contentDescription = "Back",
+                onClick = onBackClick,
+            )
+        },
+        actions = {
+            TextButton(
+                onClick = onDoneClick,
+                colors =
+                    ButtonDefaults.textButtonColors(
+                        contentColor = BuyOrNotTheme.colors.gray950,
+                    ),
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Text(
+                    text = "완료",
+                    style = BuyOrNotTheme.typography.subTitleS2SemiBold,
+                )
+            }
+        },
+    )
+}
+
+/**
+ * 4. 홈 화면용 TopBar (로고 + 알림 + 프로필)
  */
 @Composable
 fun HomeTopBar(
@@ -138,7 +172,7 @@ fun HomeTopBar(
                 imageVector = BuyOrNotIcons.NotificationFilled.asImageVector(),
                 contentDescription = "Notification",
                 onClick = onNotificationClick,
-                tint = BuyOrNotTheme.colors.gray500,
+                tint = BuyOrNotTheme.colors.gray600,
                 alignment = Alignment.CenterEnd,
             )
 
@@ -148,7 +182,7 @@ fun HomeTopBar(
                 imageVector = BuyOrNotIcons.Profile.asImageVector(),
                 contentDescription = "Profile",
                 onClick = onProfileClick,
-                tint = BuyOrNotTheme.colors.gray500,
+                tint = BuyOrNotTheme.colors.gray600,
                 alignment = Alignment.CenterEnd,
             )
         },
@@ -156,7 +190,7 @@ fun HomeTopBar(
 }
 
 /**
- * 4. 게스트/로그인 유도용 TopBar (로고 + 로그인 버튼)
+ * 5. 게스트/로그인 유도용 TopBar (로고 + 로그인 버튼)
  */
 @Composable
 fun GuestTopBar(onLoginClick: () -> Unit) {
@@ -175,7 +209,7 @@ fun GuestTopBar(onLoginClick: () -> Unit) {
                 colors =
                     ButtonDefaults.buttonColors(
                         containerColor = BuyOrNotTheme.colors.gray0,
-                        contentColor = BuyOrNotTheme.colors.gray700,
+                        contentColor = BuyOrNotTheme.colors.gray800,
                     ),
                 border =
                     BorderStroke(
@@ -184,7 +218,7 @@ fun GuestTopBar(onLoginClick: () -> Unit) {
                     ),
                 contentPadding =
                     PaddingValues(
-                        horizontal = 10.dp,
+                        horizontal = 12.dp,
                         vertical = 12.dp,
                     ),
             ) {
@@ -214,6 +248,17 @@ private fun BackTopBarWithTitlePreview() {
         BackTopBarWithTitle(
             title = "투표 피드",
             onBackClick = {},
+        )
+    }
+}
+
+@Preview(name = "BackTopBarWithDone", showBackground = true)
+@Composable
+private fun BackTopBarWithDonePreview() {
+    BuyOrNotTheme {
+        BackTopBarWithDone(
+            onBackClick = {},
+            onDoneClick = {},
         )
     }
 }

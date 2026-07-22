@@ -237,6 +237,7 @@ fun HomeScreen(
 @Composable
 private fun HomeTopBarSection(
     userType: UserType,
+    unreadNotificationCount: Int,
     onLoginClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
@@ -247,6 +248,7 @@ private fun HomeTopBarSection(
             HomeTopBar(
                 onNotificationClick = onNotificationClick,
                 onProfileClick = onProfileClick,
+                unreadCount = unreadNotificationCount,
             )
         }
     }
@@ -371,6 +373,7 @@ private fun HomeFeedList(
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
         enterTimeMs = System.currentTimeMillis()
         onIntent(HomeIntent.OnFeedScreenEntered(firstVisibleItemIndex = listState.firstVisibleItemIndex))
+        onIntent(HomeIntent.RefreshUnreadCount)
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         onIntent(
@@ -561,6 +564,7 @@ private fun HomeFeedList(
                     ) {
                         HomeTopBarSection(
                             userType = uiState.userType,
+                            unreadNotificationCount = uiState.unreadNotificationCount,
                             onLoginClick = onLoginClick,
                             onNotificationClick = onNotificationClick,
                             onProfileClick = onProfileClick,

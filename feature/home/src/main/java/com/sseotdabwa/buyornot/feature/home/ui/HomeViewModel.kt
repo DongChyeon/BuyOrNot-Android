@@ -15,9 +15,11 @@ import com.sseotdabwa.buyornot.domain.model.FeedStatus
 import com.sseotdabwa.buyornot.domain.model.UserType
 import com.sseotdabwa.buyornot.domain.model.VoteChoice
 import com.sseotdabwa.buyornot.domain.repository.FeedRepository
+import com.sseotdabwa.buyornot.domain.repository.NotificationRepository
 import com.sseotdabwa.buyornot.domain.repository.UserPreferencesRepository
 import com.sseotdabwa.buyornot.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,10 +32,12 @@ class HomeViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val feedRepository: FeedRepository,
     private val userRepository: UserRepository,
+    private val notificationRepository: NotificationRepository,
     private val analytics: Analytics,
 ) : BaseViewModel<HomeUiState, HomeIntent, HomeSideEffect>(HomeUiState()) {
     private var currentUserId: Long? = null
     private var isUserIdLoaded = false
+    private var unreadCountJob: Job? = null
 
     init {
         observeUserPreferences()
@@ -56,10 +60,12 @@ class HomeViewModel @Inject constructor(
                     if (lastUserType != userType) {
                         if (userType == UserType.SOCIAL) {
                             loadUserIdAndRefreshFeeds()
+                            loadUnreadCount()
                         } else {
+                            unreadCountJob?.cancel()
                             currentUserId = null
                             isUserIdLoaded = true
-                            updateState { it.copy(selectedTab = HomeTab.FEED) }
+                            updateState { it.copy(selectedTab = HomeTab.FEED, unreadNotificationCount = 0) }
                             loadFeeds(tab = HomeTab.FEED)
                         }
                         lastUserType = userType
@@ -102,6 +108,30 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 안 읽은 알림 수를 조회해 배지 상태에 반영한다.
+     * 로그인(SOCIAL) 상태에서만 호출하며, 실패 시 silent(이전 값 유지, UI 오류 없음).
+     */
+    private fun loadUnreadCount() {
+        if (uiState.value.userType != UserType.SOCIAL) return
+
+        // 겹치는 요청 시 이전 요청을 취소해 오래된 응답이 최신 값을 덮어쓰지 않도록 한다.
+        unreadCountJob?.cancel()
+        unreadCountJob =
+            viewModelScope.launch {
+                runCatchingCancellable {
+                    notificationRepository.getUnreadCount()
+                }.onSuccess { count ->
+                    // 로그아웃 등으로 세션이 바뀐 뒤 도착한 응답은 무시한다.
+                    if (uiState.value.userType == UserType.SOCIAL) {
+                        updateState { it.copy(unreadNotificationCount = count) }
+                    }
+                }.onFailure { e ->
+                    Log.e("HomeViewModel", "Failed to load unread notification count", e)
+                }
+            }
+    }
+
     override fun handleIntent(intent: HomeIntent) {
         when (intent) {
             is HomeIntent.OnTabSelected -> handleTabSelection(intent.tab)
@@ -126,6 +156,7 @@ class HomeViewModel @Inject constructor(
                 }
             is HomeIntent.OnBlockConfirmed -> handleBlockConfirmed()
             is HomeIntent.LoadFeeds -> loadFeeds()
+            is HomeIntent.RefreshUnreadCount -> loadUnreadCount()
             is HomeIntent.LoadNextPage -> handleNextPage()
             is HomeIntent.Refresh -> handleRefresh()
             is HomeIntent.OnCategoryToggled -> handleCategoryToggled(intent.category)

@@ -580,10 +580,13 @@ class HomeViewModel @Inject constructor(
                 }
             }.onSuccess { feedList ->
                 val refreshedFeeds =
-                    feedList.feeds.map { feed ->
-                        val isOwner = currentUserId != null && feed.author.userId == currentUserId
-                        feed.toFeedItem(isOwner)
-                    }
+                    feedList.feeds
+                        .map { feed ->
+                            val isOwner = currentUserId != null && feed.author.userId == currentUserId
+                            feed.toFeedItem(isOwner)
+                        }
+                        // LazyColumn key 유일성 보장: 새로고침 응답의 중복 feedId 방지 (이슈 #128)
+                        .distinctBy { it.id }
                 updateState {
                     it.copy(
                         allFeeds = refreshedFeeds,

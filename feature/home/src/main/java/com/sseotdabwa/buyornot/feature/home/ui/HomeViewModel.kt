@@ -39,6 +39,11 @@ class HomeViewModel @Inject constructor(
     private var isUserIdLoaded = false
     private var unreadCountJob: Job? = null
 
+    // 피드 로딩 요청 세대. 새 로드/새로고침(탭·필터·카테고리 변경 포함) 시 증가시키고,
+    // 페이지네이션은 요청 시작 시점의 세대와 일치할 때만 결과를 병합해
+    // 진행 중이던 이전 페이지 응답이 최신 목록/커서를 덮어쓰지 않도록 한다. (PR #129 리뷰)
+    private var feedGeneration = 0
+
     init {
         observeUserPreferences()
         loadInitialData()
@@ -235,6 +240,7 @@ class HomeViewModel @Inject constructor(
     private fun handleNextPage() {
         if (currentState.isNextPageLoading || !currentState.hasNextPage) return
 
+        val requestGeneration = feedGeneration
         viewModelScope.launch {
             updateState { it.copy(isNextPageLoading = true) }
             val requestedTab = currentState.selectedTab
@@ -257,7 +263,9 @@ class HomeViewModel @Inject constructor(
                         )
                 }
             }.onSuccess { feedList ->
-                if (currentState.selectedTab != requestedTab) {
+                // 요청 중 새 로드/새로고침/필터·카테고리·탭 변경이 있었으면(세대 불일치)
+                // 오래된 페이지 병합과 hasNextPage/nextCursor 갱신을 건너뛴다. (PR #129 리뷰)
+                if (feedGeneration != requestGeneration) {
                     updateState { it.copy(isNextPageLoading = false) }
                     return@launch
                 }
@@ -268,7 +276,9 @@ class HomeViewModel @Inject constructor(
                         feed.toFeedItem(isOwner)
                     }
 
-                val newAllFeeds = currentState.allFeeds + newItems
+                // 커서 기반 페이지네이션에서 페이지 경계가 겹치면 동일 feedId가 중복될 수 있어
+                // LazyColumn 중복 key 크래시가 발생한다. id 기준으로 중복을 제거한다. (이슈 #128)
+                val newAllFeeds = (currentState.allFeeds + newItems).distinctBy { it.id }
 
                 updateState {
                     it.copy(
@@ -503,6 +513,8 @@ class HomeViewModel @Inject constructor(
         tab: HomeTab? = null,
         clearFeeds: Boolean = true,
     ) {
+        // 새 로드 컨텍스트 시작 → 진행 중이던 페이지네이션 응답 무효화
+        feedGeneration++
         viewModelScope.launch {
             if (clearFeeds) {
                 updateState {
@@ -533,10 +545,13 @@ class HomeViewModel @Inject constructor(
                 }
             }.onSuccess { feedList ->
                 val newFeeds =
-                    feedList.feeds.map { feed ->
-                        val isOwner = currentUserId != null && feed.author.userId == currentUserId
-                        feed.toFeedItem(isOwner)
-                    }
+                    feedList.feeds
+                        .map { feed ->
+                            val isOwner = currentUserId != null && feed.author.userId == currentUserId
+                            feed.toFeedItem(isOwner)
+                        }
+                        // LazyColumn key 유일성 보장: 동일 feedId 중복 방지 (이슈 #128)
+                        .distinctBy { it.id }
                 updateState {
                     it.copy(
                         allFeeds = newFeeds,
@@ -561,6 +576,8 @@ class HomeViewModel @Inject constructor(
     private fun handleRefresh() {
         if (currentState.isRefreshing) return
 
+        // 새로고침도 새 로드 컨텍스트 → 진행 중이던 페이지네이션 응답 무효화
+        feedGeneration++
         viewModelScope.launch {
             updateState { it.copy(isRefreshing = true, hasError = false) }
 
@@ -575,10 +592,13 @@ class HomeViewModel @Inject constructor(
                 }
             }.onSuccess { feedList ->
                 val refreshedFeeds =
-                    feedList.feeds.map { feed ->
-                        val isOwner = currentUserId != null && feed.author.userId == currentUserId
-                        feed.toFeedItem(isOwner)
-                    }
+                    feedList.feeds
+                        .map { feed ->
+                            val isOwner = currentUserId != null && feed.author.userId == currentUserId
+                            feed.toFeedItem(isOwner)
+                        }
+                        // LazyColumn key 유일성 보장: 새로고침 응답의 중복 feedId 방지 (이슈 #128)
+                        .distinctBy { it.id }
                 updateState {
                     it.copy(
                         allFeeds = refreshedFeeds,

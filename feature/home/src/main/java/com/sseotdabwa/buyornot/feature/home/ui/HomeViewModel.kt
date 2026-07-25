@@ -268,7 +268,9 @@ class HomeViewModel @Inject constructor(
                         feed.toFeedItem(isOwner)
                     }
 
-                val newAllFeeds = currentState.allFeeds + newItems
+                // 커서 기반 페이지네이션에서 페이지 경계가 겹치면 동일 feedId가 중복될 수 있어
+                // LazyColumn 중복 key 크래시가 발생한다. id 기준으로 중복을 제거한다. (이슈 #128)
+                val newAllFeeds = (currentState.allFeeds + newItems).distinctBy { it.id }
 
                 updateState {
                     it.copy(
@@ -533,10 +535,13 @@ class HomeViewModel @Inject constructor(
                 }
             }.onSuccess { feedList ->
                 val newFeeds =
-                    feedList.feeds.map { feed ->
-                        val isOwner = currentUserId != null && feed.author.userId == currentUserId
-                        feed.toFeedItem(isOwner)
-                    }
+                    feedList.feeds
+                        .map { feed ->
+                            val isOwner = currentUserId != null && feed.author.userId == currentUserId
+                            feed.toFeedItem(isOwner)
+                        }
+                        // LazyColumn key 유일성 보장: 동일 feedId 중복 방지 (이슈 #128)
+                        .distinctBy { it.id }
                 updateState {
                     it.copy(
                         allFeeds = newFeeds,

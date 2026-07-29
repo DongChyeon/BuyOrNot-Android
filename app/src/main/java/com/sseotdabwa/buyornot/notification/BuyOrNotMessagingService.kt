@@ -58,6 +58,7 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
         }
 
         showFeedNotification(
+            type = type,
             feedId = feedId,
             notificationId = notificationId,
             title = message.notification?.title ?: DEFAULT_TITLE,
@@ -66,6 +67,7 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
     }
 
     private fun showFeedNotification(
+        type: String?,
         feedId: Long?,
         notificationId: Long?,
         title: String,
@@ -73,10 +75,13 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
     ) {
         createNotificationChannel()
 
-        // 마케팅(feedId·notificationId 없음)은 딥링크 없이 앱만 열리도록 extra를 심지 않는다.
+        // 딥링크용 feedId/notificationId는 있을 때만 심는다(마케팅 알림은 없음).
+        // 반면 푸시 마커와 type은 유입 로깅(push_opened)에 필요하므로 마케팅 알림에도 항상 심는다.
         val intent =
             Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(FcmKeys.FROM_PUSH, true)
+                putExtra(FcmKeys.TYPE, type ?: FcmKeys.UNKNOWN_TYPE)
                 if (feedId != null) putExtra(FcmKeys.FEED_ID, feedId.toString())
                 if (notificationId != null) putExtra(FcmKeys.NOTIFICATION_ID, notificationId.toString())
             }

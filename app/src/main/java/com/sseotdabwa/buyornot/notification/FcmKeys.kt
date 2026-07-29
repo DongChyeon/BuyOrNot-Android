@@ -9,4 +9,14 @@ object FcmKeys {
     const val FEED_ID = "feedId"
     const val NOTIFICATION_ID = "notificationId"
     const val TYPE = "type"
+
+    /**
+     * 알림 탭으로 열린 Intent임을 표시하는 마커.
+     *
+     * 마케팅 알림은 [FEED_ID]·[NOTIFICATION_ID]가 없어 이 마커가 없으면 탭 자체를 감지할 수 없다.
+     */
+    const val FROM_PUSH = "fromPush"
+
+    /** 서버가 [TYPE]을 주지 않았거나 알 수 없는 값일 때 로깅에 사용할 기본값. */
+    const val UNKNOWN_TYPE = "UNKNOWN"
 }

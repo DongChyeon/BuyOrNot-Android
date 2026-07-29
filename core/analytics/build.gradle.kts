@@ -40,4 +40,7 @@ dependencies {
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+
+    // android.jar의 org.json은 유닛테스트에서 Stub!을 던지므로 실제 구현체를 테스트에만 넣는다.
+    testImplementation(libs.json)
 }

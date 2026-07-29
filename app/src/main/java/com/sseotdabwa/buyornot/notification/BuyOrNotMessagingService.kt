@@ -76,11 +76,11 @@ class BuyOrNotMessagingService : FirebaseMessagingService() {
         createNotificationChannel()
 
         // 딥링크용 feedId/notificationId는 있을 때만 심는다(마케팅 알림은 없음).
-        // 반면 푸시 마커와 type은 유입 로깅(push_opened)에 필요하므로 마케팅 알림에도 항상 심는다.
+        // type은 유입 로깅(push_opened)의 탭 감지 마커라 마케팅 알림에도 항상 심어, 이 포그라운드
+        // 경로가 FCM이 만드는 백그라운드 launch Intent와 같은 extra 구성을 갖도록 맞춘다.
         val intent =
             Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(FcmKeys.FROM_PUSH, true)
                 putExtra(FcmKeys.TYPE, type ?: FcmKeys.UNKNOWN_TYPE)
                 if (feedId != null) putExtra(FcmKeys.FEED_ID, feedId.toString())
                 if (notificationId != null) putExtra(FcmKeys.NOTIFICATION_ID, notificationId.toString())

@@ -70,14 +70,16 @@ class MainActivity : ComponentActivity() {
 
     /**
      * 알림 탭 유입을 로깅한다. 딥링크(feedId 필요)와 분리해야 feedId가 없는 마케팅 알림 탭도 잡힌다.
+     *
+     * 탭 판별은 서버 data 페이로드 키인 [FcmKeys.TYPE]의 존재로 한다. 앱이 심은 마커를 쓰면
+     * 백그라운드·종료 상태 탭(FCM이 launch Intent를 만드는 경로)이 전부 누락된다.
      */
     private fun handlePushOpened(intent: Intent?) {
-        if (intent == null || !intent.getBooleanExtra(FcmKeys.FROM_PUSH, false)) return
+        if (intent == null || !intent.hasExtra(FcmKeys.TYPE)) return
         val pushType = intent.getStringExtra(FcmKeys.TYPE) ?: FcmKeys.UNKNOWN_TYPE
         val feedId = intent.longExtraOrNull(FcmKeys.FEED_ID)
         val notificationId = intent.longExtraOrNull(FcmKeys.NOTIFICATION_ID)
         // 회전·프로세스 재생성으로 onCreate가 같은 Intent를 다시 받아도 중복 발행되지 않도록 마커를 소비한다.
-        intent.removeExtra(FcmKeys.FROM_PUSH)
         intent.removeExtra(FcmKeys.TYPE)
         setIntent(intent)
         if (BuildConfig.DEBUG) {

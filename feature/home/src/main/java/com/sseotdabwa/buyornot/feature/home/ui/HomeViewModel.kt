@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.sseotdabwa.buyornot.core.analytics.Analytics
 import com.sseotdabwa.buyornot.core.analytics.AnalyticsEvent
+import com.sseotdabwa.buyornot.core.analytics.performance.Performance
+import com.sseotdabwa.buyornot.core.analytics.performance.TraceNames
 import com.sseotdabwa.buyornot.core.common.util.TimeUtils
 import com.sseotdabwa.buyornot.core.common.util.runCatchingCancellable
 import com.sseotdabwa.buyornot.core.designsystem.components.ImageAspectRatio
@@ -34,7 +36,13 @@ class HomeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val notificationRepository: NotificationRepository,
     private val analytics: Analytics,
+    private val performance: Performance,
 ) : BaseViewModel<HomeUiState, HomeIntent, HomeSideEffect>(HomeUiState()) {
+    // 최초 피드 로딩 구간만 계측한다. loadFeeds()는 로그인 상태에서 init과
+    // userPreferences collect 양쪽에서 겹쳐 호출되므로, 중복 start/stop을 흘려보내는
+    // SingleShotPerfTrace에 의존해 첫 구간만 남긴다.
+    private val feedFirstLoadTrace = performance.newTrace(TraceNames.FEED_FIRST_LOAD)
+
     private var currentUserId: Long? = null
     private var isUserIdLoaded = false
     private var unreadCountJob: Job? = null
@@ -319,12 +327,23 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val choice = if (optionIndex == 0) VoteChoice.YES else VoteChoice.NO
 
+            // UI는 위에서 낙관적으로 이미 갱신됐으므로, 이 trace는 사용자 체감 시간이 아닌
+            // 서버 왕복 시간을 재고 롤백이 얼마나 늦게 발생하는지 보기 위한 것이다.
+            val voteTrace =
+                performance.newTrace(TraceNames.VOTE_REQUEST).apply {
+                    putAttribute("user_type", uiState.value.userType.name)
+                    putAttribute("choice", choice.name)
+                    start()
+                }
+
             runCatchingCancellable {
                 when (uiState.value.userType) {
                     UserType.SOCIAL -> feedRepository.voteFeed(feedId.toLong(), choice)
                     UserType.GUEST -> feedRepository.voteGuestFeed(feedId.toLong(), choice)
                 }
             }.onSuccess { voteResult ->
+                voteTrace.putAttribute("result", "success")
+                voteTrace.stop()
                 // 2. 최종 업데이트: 서버 응답으로 확정
                 updateState { state ->
                     val newAllFeeds =
@@ -357,6 +376,8 @@ class HomeViewModel @Inject constructor(
                     ),
                 )
             }.onFailure { e ->
+                voteTrace.putAttribute("result", "error")
+                voteTrace.stop()
                 Log.e("HomeViewModel", "Failed to vote feed: $feedId", e)
                 // 3. 롤백 (Rollback): 해당 피드만 원복, 나머지 동시 변경사항 보존
                 updateState { state ->
@@ -516,6 +537,7 @@ class HomeViewModel @Inject constructor(
         // 새 로드 컨텍스트 시작 → 진행 중이던 페이지네이션 응답 무효화
         feedGeneration++
         viewModelScope.launch {
+            feedFirstLoadTrace.start()
             if (clearFeeds) {
                 updateState {
                     it.copy(
@@ -562,9 +584,14 @@ class HomeViewModel @Inject constructor(
                         nextCursor = feedList.nextCursor,
                     )
                 }
+                feedFirstLoadTrace.putAttribute("result", "success")
+                feedFirstLoadTrace.putMetric("feed_count", newFeeds.size.toLong())
+                feedFirstLoadTrace.stop()
             }.onFailure { e ->
                 Log.e("HomeViewModel", "Failed to load feeds", e)
                 updateState { it.copy(isLoading = false, hasError = true) }
+                feedFirstLoadTrace.putAttribute("result", "error")
+                feedFirstLoadTrace.stop()
             }
         }
     }

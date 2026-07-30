@@ -38,6 +38,9 @@ android {
 dependencies {
     implementation(libs.mixpanel.android)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.performance)
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 }

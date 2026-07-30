@@ -27,13 +27,15 @@ class IdentityBufferingAnalytics(
 
     override fun identify(userId: String?) {
         delegate.identify(userId)
-        val flushed =
-            synchronized(this) {
-                if (identified) return
-                identified = true
-                pending.toList().also { pending.clear() }
-            }
-        flushed.forEach(delegate::track)
+        // flush를 락 안에서 끝낸다. 락을 먼저 풀면 그 사이 다른 스레드의 track()이 identified=true를 보고
+        // 새 이벤트를 pending보다 먼저 흘려보낼 수 있다. delegate.track은 큐에 넣고 바로 반환하므로
+        // 최대 MAX_PENDING_EVENTS개를 락 안에서 처리해도 부담이 없다.
+        synchronized(this) {
+            if (identified) return
+            identified = true
+            pending.forEach(delegate::track)
+            pending.clear()
+        }
     }
 
     private companion object {

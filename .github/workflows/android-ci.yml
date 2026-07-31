@@ -10,6 +10,9 @@ on:
 jobs:
   unit-test:
     runs-on: ubuntu-latest
+    # 이 잡은 git 쓰기가 필요 없으므로 토큰을 읽기 전용으로 축소한다.
+    permissions:
+      contents: read
     if: github.actor != 'github-actions[bot]'
     concurrency:
       group: unit-test-${{ github.ref }}
@@ -20,6 +23,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref }}
+          # Gradle 빌드 스크립트에 토큰이 노출되지 않도록 로컬 git 설정에 남기지 않는다.
+          persist-credentials: false
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4

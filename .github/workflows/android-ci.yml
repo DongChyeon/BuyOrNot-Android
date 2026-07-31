@@ -21,8 +21,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        # ref를 지정하지 않아 PR에서는 base와 병합된 merge ref를 검증한다.
+        # (브랜치 이름으로 체크아웃하면 트리거 커밋이 아닌 최신 tip을 테스트할 수 있다)
         with:
-          ref: ${{ github.head_ref || github.ref }}
           # Gradle 빌드 스크립트에 토큰이 노출되지 않도록 로컬 git 설정에 남기지 않는다.
           persist-credentials: false
 
